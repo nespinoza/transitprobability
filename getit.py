@@ -9,6 +9,9 @@ DeltaI,DeltaI_sigma_up,DeltaI_sigma_down = 2.0,4.0,2.0
 # Inclination of transiting planet, in degrees:
 inc,inc_sigma_up,inc_sigma_down = 89.12,0.37,0.31
 
+# Semi-major axis (AU) of planet we know does not transit (planet c):
+ac,ac_sigma_up,ac_sigma_down = 0.061,0.004,0.004
+
 # Semi-major axis of non-transiting planet (AU):
 a,a_sigma_up,a_sigma_down = 0.204,0.015,0.015
 
@@ -23,19 +26,24 @@ for i in range(1000):
     inc_samples = utils.sample_from_errors(inc, inc_sigma_up,inc_sigma_down, nsamples, low_lim = 0., up_lim = 90.)
     a_samples = utils.sample_from_errors(a,a_sigma_up,a_sigma_down, nsamples, low_lim = 0.,up_lim = 1000.)
     R_samples = utils.sample_from_errors(R,R_sigma_up,R_sigma_down, nsamples, low_lim = 0.,up_lim = 1000.)
-
+    ac_samples = utils.sample_from_errors(ac,ac_sigma_up,ac_sigma_down, nsamples, low_lim = 0.,up_lim = 1000.)
     # Compute R*/a:
     Ra = (R_samples * 6.957e5)/(a_samples * 149597870.7)
-    print np.median(Ra)*100
-    # Compute possible inclination of the target. For this, draw nsamples 1 and -1 values:
-    sign = np.random.choice(np.append(np.ones(nsamples),-np.ones(nsamples)),nsamples,replace=True)
+    # Same for c:
+    Rac = (R_samples * 6.957e5)/(ac_samples * 149597870.7)
     # Generate possible target inclinations:
-    target_inc = inc_samples + DeltaI_samples*sign
+    target_inc = np.zeros(nsamples)
+    incc = np.zeros(nsamples)
+    for j in range(nsamples):
+        target_inc[j],incc[j] = np.random.normal(inc_samples[j],DeltaI_samples[j],size=2)
     # Identify inclinations larger than 90, those are the same as inclinations 180 - i:
     idx = np.where(target_inc>90.)[0]
     target_inc[idx] = 180. - target_inc[idx]
-    # Compute probability of transit:
-    ntransit = np.where(np.cos(target_inc*np.pi/180.)<Ra)[0]
+    # Same for c:
+    idx = np.where(incc>90.)[0]
+    incc[idx] = 180. - incc[idx]
+    # Compute probability of transit. d has to transit, but c does not:
+    ntransit = np.where((np.cos(target_inc*np.pi/180.)<Ra)&(np.cos(incc*np.pi/180.)>Rac))[0]
     ptransit = np.append(ptransit,(np.double(len(ntransit))/np.double(nsamples))*100)
 
 # Print probability:
